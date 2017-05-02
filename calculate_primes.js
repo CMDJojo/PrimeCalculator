@@ -21,10 +21,15 @@ try{
 prompt.message="calculate_primes.js"
 
 function startPrompt(){
-  console.log("Do you want to CHECK a number range for primes, or CALCULATE how many modulus calculations that will be needed for that, or estimate the TIME it will take to calculate something? Or maybe you want to find the NEXT prime number from another number.")
+  console.log("Type an action you want to execute.")
+  console.log("  ·you can SEARCH a number range for primes,")
+  console.log("  ·you can FIND a requested amount of primes,")
+  console.log("  ·you can CALCULATE how many modulus operations will be needed for a SEARCH,")
+  console.log("  ·you can estimate the TIME needed for a SEARCH.")
+  console.log("  ·you can MERGE all results in the primeResults folder to one single file")
   prompt.get({name:"Action"},function(err,result){
     switch(result.Action.toLowerCase()){
-      case "check":
+      case "search":
       promptPrimeTest()
       break;
       case "calculate":
@@ -33,8 +38,11 @@ function startPrompt(){
       case "time":
       calculateTime()
       break;
-      case "next":
-      findNextNumber()
+      case "find":
+      findPrimes()
+      break;
+      case "merge":
+      mergeResults();
       break;
       default:
       startPrompt()
@@ -42,19 +50,89 @@ function startPrompt(){
   })
 }
 
-function findNextNumber(){
-  console.log("This script will search for the first prime number that is higher or the same as the inputed number")
-  prompt.get({name:"number",type:"number",required:true},function(err,result){
-    for(exitLoop=false,i=result.number;exitLoop==false;i++){
-      if(i%2!==0){
-        if(isPrime(i)){
-          console.log("The next prime number is "+i)
-          exitLoop=true;
-        }
+function findPrimes(){
+  console.log("Type the amount of primes to find")
+  prompt.get({name:"amountToFind",type:"integer",required:true},function(err,result){
+    var primes = []
+    var startTime = new Date()
+    for(y=2;primes.length<result.amountToFind;y++){
+      if(isPrime(y)){
+        console.log(y+" is a prime")
+        primes.push(y)
       }
     }
+    var testTime = new Date()
+    var name = "./primeResults/first"+result.amountToFind+"primes.json"
+    fs.writeFileSync(name,JSON.stringify(primes))
+    var finishedTime = new Date()
+    var modulusTime = testTime-startTime
+    var s = modulusTime
+    var ms = ("00"+(s % 1000)).slice(-3)
+    s = (s - ms) / 1000;
+    var secs = ("0"+(s % 60)).slice(-2)
+    s = (s - secs) / 60;
+    var mins = ("0"+(s % 60)).slice(-2)
+    var hrs = ("0"+((s - mins) / 60)).slice(-2)
+    var timeString = hrs+":"+mins+":"+secs+"."+ms
+    var operationsPushFinished = new Date()
+
+    console.log("The first "+result.amountToFind+" primes has been found.")
+    console.log("All those primes are saved to '"+name+"' in the primeResults folder")
+    console.log("Started @"+startTime.toLocaleTimeString()+", prime test finished @"+testTime.toLocaleTimeString()+", and write time finished @"+finishedTime.toLocaleTimeString()+". The aftercalculations finished @"+operationsPushFinished.toLocaleTimeString())
+    console.log("The modulus calculations took a total of "+hrs+":"+mins+":"+secs+"."+ms)
     startPrompt()
   })
+}
+
+function mergeResults(){
+  console.log("Finding, merging and checking ALL results in the primeResults folder")
+  var startStart = new Date();
+  files = fs.readdirSync("./primeResults/")
+  var mergedPrimes = []
+  files.forEach(function(value,index){
+    var fileToRead = "./primeResults/"+value;
+    var file = JSON.parse(fs.readFileSync(fileToRead, 'utf8'))
+    if(Array.isArray(file)){
+      mergedPrimes = mergedPrimes.concat(file)
+    }
+  })
+  var startSorting = new Date();
+  console.log("Results found. Sorting them...")
+  var uniqueArray = []
+  mergedPrimes.forEach(function(value,index){
+    if(uniqueArray.indexOf(value)==-1){
+      uniqueArray.push(value)
+    }
+    if(mergedPrimes.length>=10000){
+      console.log(index+" of "+mergedPrimes.length+" sorted...")
+    }
+  })
+
+  var startAfterWork = new Date();
+  uniqueArray.sort(function(a, b){return a - b});
+  var minValue = uniqueArray[0]
+  var maxValue = uniqueArray[uniqueArray.length-1]
+  var length = uniqueArray.length
+  var name = "./primeResults/mPrimes"+minValue+"-"+maxValue+".json";
+  fs.writeFileSync(name,JSON.stringify(uniqueArray))
+
+  var modulusTime = startAfterWork-startStart
+  var s = modulusTime
+  var ms = ("00"+(s % 1000)).slice(-3)
+  s = (s - ms) / 1000;
+  var secs = ("0"+(s % 60)).slice(-2)
+  s = (s - secs) / 60;
+  var mins = ("0"+(s % 60)).slice(-2)
+  var hrs = ("0"+((s - mins) / 60)).slice(-2)
+  var timeString = hrs+":"+mins+":"+secs+"."+ms
+
+  var finished = new Date();
+
+  console.log("Found "+length+" different primes. All are sorted and double checked. The lowest prime was "+minValue+" and the highest was "+maxValue)
+  console.log("Results saved to "+name)
+  console.log("Started @"+startStart.toLocaleTimeString()+", results merged @"+startSorting.toLocaleTimeString()+", and sorting time finished @"+startAfterWork.toLocaleTimeString()+". Everything finished @"+finished.toLocaleTimeString())
+  console.log("Everything took a total of "+hrs+":"+mins+":"+secs+"."+ms)
+  startPrompt()
 }
 
 function calculateTime(){
@@ -113,8 +191,10 @@ function promptPrimeTest(){
     console.log("Generating array of numbers...")
 
     for(i=result.MinNo;i<=result.MaxNo;i++){
-      if(i%2!==0||i===2){
-        testArray.push(i)
+      if(i!==1){
+        if(i%2!==0||i===2){
+          testArray.push(i)
+        }
       }
     }
     console.log("Array ready")
@@ -165,16 +245,18 @@ function calculateModulus(min,max){
   console.log("Calculating modulus operations...")
 
   for(i=min;i<=max;i++){
-    if(i%2!==0||i===2){
-      calculations += Math.round(i/2-0,5)
-      numbers++
+    if(i!==1){
+      if(i%2!==0||i===2){
+        calculations += Math.round(i/2-0,5)
+        numbers++
+      }
     }
   }
   return {calculations:calculations,numbers:numbers,min:min,max:max}
 }
 
 function isPrime(value) {
-    for(i = 2; i < value/2; i++) {
+    for(i = 2; i <= value/2; i++) {
         if(value % i === 0) {
             return false;
         }
