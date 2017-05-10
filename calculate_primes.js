@@ -1,5 +1,20 @@
-var prompt = require("prompt");
-var fs = require("fs")
+//calculate_primes.js V2.0
+//©Jonathan Widén 2017
+//Please install node.js and the npm:s Prompt and FS before using this
+try{
+  var prompt = require("prompt")
+}catch(err){
+  console.log("Please install the Node-Package-Module (NPM) prompt first")
+  console.log("Do 'npm install prompt'")
+  process.exit(0)
+}
+try{
+  var fs = require("fs")
+}catch(err){
+  console.log("Please install the Node-Package-Module (NPM) fs first")
+  console.log("Do 'npm install fs'")
+  process.exit(0)
+}
 
 var dir = './primeResults';
 
@@ -7,120 +22,162 @@ if (!fs.existsSync(dir)){
     fs.mkdirSync(dir);
 }
 
-var operationsCalculations;
-
-try{
-  operationsCalculations = JSON.parse(fs.readFileSync('operations.json', 'utf8'))
-}catch(err){
-  console.log("No operations file existed, creating one...")
-  var newValue={operations:[]}
-  fs.writeFileSync('operations.json',JSON.stringify(newValue))
-  operationsCalculations = require("./operations.json")
-}
-
-prompt.message="calculate_primes.js"
-
-function startPrompt(){
-  console.log("Type an action you want to execute.")
-  console.log("  ·you can SEARCH a number range for primes,")
-  console.log("  ·you can FIND a requested amount of primes,")
-  console.log("  ·you can MERGE all results in the primeResults folder to one single file (will take some time)")
+function userPrompt(){
+  prompt.message="Prime Calculator -> console"
+  console.log("What do you want to do?")
+  console.log("  ·you can SEARCH a number range for primes")
+  //console.log("  ·you can FIND a requested amount of primes")
   prompt.get({name:"Action"},function(err,result){
     switch(result.Action.toLowerCase()){
       case "search":
-      promptPrimeSearch()
+      searchPrompt(1)
       break;
       case "find":
-      findPrimes()
-      break;
-      case "merge":
-      mergeResults();
+      findPrompt(1)
       break;
       default:
-      startPrompt()
+      userPrompt()
     }
   })
 }
 
-function findPrimes(){
-  console.log("Type the amount of primes to find")
-  prompt.get({name:"amountToFind",type:"integer",required:true},function(err,result){
-    console.log("Do you want to log the results in the console? (true/false)")
-    console.log("Logging results will take some more time...")
-    prompt.get({name:"logConsole",type:"boolean",required:true},function(err,result2){
-      var primes = []
-      var startTime = new Date()
-      var isPrime;
-      for(y=2;primes.length<result.amountToFind;y++){
-        isPrime = true
-        for(i=0;primes[i]<=(y/2)&&isPrime == true;i++){
-          if(y%primes[i]===0){
-            isPrime = false
-          }
-        }
-        if(isPrime){
-          if(result2.logConsole){console.log(y+" is a prime")}
-          primes.push(y)
-        }
-      }
-      var testTime = new Date()
-      var name = "./primeResults/first"+result.amountToFind+"primes.json"
-      fs.writeFileSync(name,JSON.stringify(primes))
-      var finishedTime = new Date()
-      var modulusTime = testTime-startTime
-      var s = modulusTime
-      var ms = ("00"+(s % 1000)).slice(-3)
-      s = (s - ms) / 1000;
-      var secs = ("0"+(s % 60)).slice(-2)
-      s = (s - secs) / 60;
-      var mins = ("0"+(s % 60)).slice(-2)
-      var hrs = ("0"+((s - mins) / 60)).slice(-2)
-      var timeString = hrs+":"+mins+":"+secs+"."+ms
-      var operationsPushFinished = new Date()
-
-      console.log("The first "+result.amountToFind+" primes has been found.")
-      console.log("All those primes are saved to '"+name+"' in the primeResults folder")
-      console.log("Started @"+startTime.toLocaleTimeString()+", prime test finished @"+testTime.toLocaleTimeString()+", and write time finished @"+finishedTime.toLocaleTimeString()+". The aftercalculations finished @"+operationsPushFinished.toLocaleTimeString())
-      console.log("The modulus calculations took a total of "+hrs+":"+mins+":"+secs+"."+ms)
-      startPrompt()
+function searchPrompt(step,input){
+  prompt.message="Prime Calculator -> search -> setup"
+  if(step===1){
+    console.log("Set the maximum range for the search")
+    prompt.get({name:"MaxRange",type:"integer",required:true,message:"Must be a number greater than 1",minimum:2},function(err,result){
+      searchPrompt(2,result.MaxRange)
     })
-  })
+  }else if(step===2){
+    console.log("Do you want to log the results in the console in real-time?")
+    console.log("This will make everything take MUCH LONGER TIME")
+    console.log("NOT RECOMMENDED")
+    console.log("true to log everything in chat meanwhile, false to log everything afterwards, leave blank to not log at all")
+    prompt.get({name:"logMode",type:"boolean"},function(err,result){
+      var memorySafe = (input>=50000000)
+      if(result.logMode===true){
+        execSearch(input,true,false,memorySafe)
+      }else if(result.logMode===false){
+        execSearch(input,false,true,memorySafe)
+      }else{
+        execSearch(input,false,false,memorySafe)
+      }
+    })
+  }
 }
 
-function mergeResults(){
-  console.log("Finding, merging and checking ALL results in the primeResults folder")
-  var startStart = new Date();
-  files = fs.readdirSync("./primeResults/")
-  var mergedPrimes = []
-  files.forEach(function(value,index){
-    var fileToRead = "./primeResults/"+value;
-    var file = JSON.parse(fs.readFileSync(fileToRead, 'utf8'))
-    if(Array.isArray(file)){
-      mergedPrimes = mergedPrimes.concat(file)
-    }
-  })
-  var startSorting = new Date();
-  console.log("Results found. Sorting them...")
-  var uniqueArray = []
-  mergedPrimes.forEach(function(value,index){
-    if(uniqueArray.indexOf(value)==-1){
-      uniqueArray.push(value)
-    }
-    if(mergedPrimes.length>=10000){
-      console.log(index+" of "+mergedPrimes.length+" sorted...")
-    }
-  })
+function execSearch(maxNo,logMeanwhile,logAfter,memorySafe){
+  if(memorySafe){
+    console.log("Memory-safe search function has been activated. That means that the saving will take longer time, to prevent crashes")
+  }
+  var time = {startTime:new Date()};
+  time.arrayTime = new Date();
+  console.log("["+time.startTime.toLocaleTimeString()+"] Prime tests has started...")
 
-  var startAfterWork = new Date();
-  uniqueArray.sort(function(a, b){return a - b});
-  var minValue = uniqueArray[0]
-  var maxValue = uniqueArray[uniqueArray.length-1]
-  var length = uniqueArray.length
-  var name = "./primeResults/mPrimes"+minValue+"--"+maxValue+".json";
-  fs.writeFileSync(name,JSON.stringify(uniqueArray))
+  //CORE CODE START
+  var primes = [];
+  for(l=2;l<=maxNo;l++){
+    var isPrime=true;
+    for(i=0;primes[i]*primes[i]<=l&&isPrime===true;i++){
+      if(l%primes[i]===0){
+        isPrime=false;
+      }
+    }
+    if(isPrime){
+      if(logMeanwhile){console.log(l+" is a prime")}
+      primes.push(l)
+    }
+  }
+  //CORE CODE END
 
-  var modulusTime = startAfterWork-startStart
-  var s = modulusTime
+  time.modTime = new Date();
+  console.log("["+time.modTime.toLocaleTimeString()+"] Writing has started...")
+  var name = "./primeResults/primesUpTo"+maxNo+".json";
+  fs.writeFileSync(name,"[")
+  var appendValue = "";
+  var appendsInBatch = 0;
+  var totalAppends = 0;
+  if(memorySafe){
+    primes.forEach(function(valueToApp,index){
+      appendValue+=valueToApp
+      appendsInBatch++
+      if(index+1!==primes.length){
+        appendValue+=","
+      }
+      if(appendsInBatch>=1000000){
+        fs.appendFileSync(name,appendValue)
+        appendValue=""
+        appendsInBatch=0
+        totalAppends++
+        console.log("Saving... "+(1000000*totalAppends)+"/"+primes.length)
+      }
+    })
+    fs.appendFileSync(name,appendValue)
+    fs.appendFileSync(name,"]")
+    console.log("Saving... "+primes.length+"/"+primes.length)
+    console.log("Saving... Success!")
+    appendValue="";
+  }else{
+    fs.writeFileSync(name,JSON.stringify(primes))
+    console.log("Saving... Success!")
+  }
+
+  time.finished = new Date()
+  var modulusTime = time.modTime-time.arrayTime
+  var modulusTimeString = msToString(modulusTime)
+  var totalTime = time.finished-time.startTime
+  var totalTimeString = msToString(totalTime)
+  var primePercentage = primes.length/(maxNo)
+  primePercentage = Math.round(primePercentage*10000)/100
+  if(logAfter){
+    primes.forEach(function(value){
+      console.log(value+" is a prime")
+    })
+  }
+  console.log("")
+  console.log("["+time.finished.toLocaleTimeString()+"] CALCULATIONS HAS FINISHED")
+  console.log("Results:")
+  console.log(primes.length+" primes were found up to "+maxNo)
+  console.log(primePercentage+"% of all searched numbers were primes")
+  console.log("Total time taken was "+totalTimeString+" ("+totalTime+"ms)")
+  console.log("Time taken for modulus operations was "+modulusTimeString+" ("+modulusTime+"ms)")
+  console.log("All primes has been saved to "+name)
+  console.log("The script has ended.")
+  process.exit(0)
+}
+
+function findPrompt(step,input){
+  prompt.message="Prime Calculator -> find -> setup"
+  if(step===1){
+    console.log("How many primes do you want to find?")
+    prompt.get({name:"FindNo",type:"integer",required:true,message:"Must be a number greater than 1",minimum:2},function(err,result){
+      findPrompt(2,result.FindNo)
+    })
+  }else if(step===2){
+    console.log("Do you want to log the results in the console in real-time?")
+    console.log("This will make everything take MUCH LONGER TIME")
+    console.log("NOT RECOMMENDED")
+    console.log("true to log everything in chat meanwhile, false to log everything afterwards, leave blank to not log at all")
+    prompt.get({name:"logMode",type:"boolean"},function(err,result){
+      var memorySafe = (input>=1000000)
+      if(result.logMode===true){
+        execFind(input,true,false,memorySafe)
+      }else if(result.logMode===false){
+        execFind(input,false,true,memorySafe)
+      }else{
+        execFind(input,false,false,memorySafe)
+      }
+    })
+  }
+}
+
+function execFind(findNo,logMeanwhile,logAfter,memorySafe){
+  console.log("The FIND function is not coded yet.")
+  console.log("Inputs: "+findNo+logMeanwhile+logAfter+memorySafe)
+  userPrompt()
+}
+
+function msToString(s){
   var ms = ("00"+(s % 1000)).slice(-3)
   s = (s - ms) / 1000;
   var secs = ("0"+(s % 60)).slice(-2)
@@ -128,180 +185,7 @@ function mergeResults(){
   var mins = ("0"+(s % 60)).slice(-2)
   var hrs = ("0"+((s - mins) / 60)).slice(-2)
   var timeString = hrs+":"+mins+":"+secs+"."+ms
-
-  var finished = new Date();
-
-  console.log("Found "+length+" different primes. All are sorted and double checked. The lowest prime was "+minValue+" and the highest was "+maxValue)
-  console.log("Results saved to "+name)
-  console.log("Started @"+startStart.toLocaleTimeString()+", results merged @"+startSorting.toLocaleTimeString()+", and sorting time finished @"+startAfterWork.toLocaleTimeString()+". Everything finished @"+finished.toLocaleTimeString())
-  console.log("Everything took a total of "+hrs+":"+mins+":"+secs+"."+ms)
-  startPrompt()
+  return timeString
 }
 
-function promptPrimeSearch(){
-  console.log("You can use the NEW search algorithm for faster results. Using the NEW alogrithm requires the minimum value in the range to be 1")
-  console.log("If you choose to use the OLD search algorithm, you can set a custom minimum number, but the search will take longer time")
-  console.log("Do you want to use the NEW or the OLD algorithm?")
-  prompt.get("algorithm",function(err,result){
-    if(!(result.algorithm.toLowerCase()=="new"||result.algorithm.toLowerCase()=="old")){
-      promptPrimeSearch();
-    }else{
-      console.log("Do you want to log everything in the console? true/false")
-      console.log("Logging in console is the only way to track the progress mid-way, but it will slow down the process a bit")
-      prompt.get({name:"logConsole",type:"boolean",required:true},function(err,result2){
-        switch(result.algorithm.toLowerCase()){
-          case "new":
-          newPrimeSearch(result2.logConsole);
-          break;
-          case "old":
-          promptPrimeTest(result2.logConsole);
-          break;
-          default:
-          promptPrimeSearch();
-        }
-      })
-    }
-  })
-}
-
-function newPrimeSearch(logConsole){
-  console.log("Type the maximum number to check")
-  prompt.get({name:"MaxNo",type:"integer",required:true},function(err,result){
-    var testArray = []
-    var primes = []
-    var startTime = new Date()
-    console.log("Generating searchable array...")
-    for(i=1;i<=result.MaxNo;i++){
-      if(i!==1){
-        if(i%2!==0||i===2){
-          testArray.push(i)
-        }
-      }
-    }
-    var arrayFinishedTime = new Date()
-    console.log("Testing has started...")
-    var isPrime;
-    testArray.forEach(function(value,index){
-      isPrime = true
-      for(i=0;primes[i]<=(value/2)&&isPrime == true;i++){
-        if(value%primes[i]===0){
-          isPrime = false
-        }
-      }
-      if(isPrime){
-        if(logConsole){console.log(value+" is a prime")}
-        primes.push(value)
-      }
-    })
-    var testTime = new Date()
-    var name = "./primeResults/primes1--"+result.MaxNo+".json"
-    fs.writeFileSync(name,JSON.stringify(primes))
-    var finishedTime = new Date()
-    var modulusTime = testTime-arrayFinishedTime
-    var operationsPush = {time:modulusTime}
-    var s = modulusTime
-    var ms = ("00"+(s % 1000)).slice(-3)
-    s = (s - ms) / 1000;
-    var secs = ("0"+(s % 60)).slice(-2)
-    s = (s - secs) / 60;
-    var mins = ("0"+(s % 60)).slice(-2)
-    var hrs = ("0"+((s - mins) / 60)).slice(-2)
-    var timeString = hrs+":"+mins+":"+secs+"."+ms
-    var primePercentage = primes.length/(result.MaxNo-2)
-    primePercentage = Math.round(primePercentage*10000)/100
-    calcModulus = calculateModulus(1,result.MaxNo)
-    operationsPush.type="newSearch"
-    operationsPush.timeString = timeString
-    operationsPush.primePercentage = primePercentage
-    operationsPush.range = {min:1,max:result.MaxNo,totalNumbers:result.MaxNo-2,numbersToCheck:calcModulus.numbers}
-    var operationsPushed = operationsCalculations
-    operationsPushed.operations.unshift(operationsPush)
-    fs.writeFileSync('operations.json',JSON.stringify(operationsPushed))
-    var operationsPushFinished = new Date()
-
-    console.log("From 1 to "+result.MaxNo+", there are "+primes.length+" primes. That is "+primePercentage+"% of the numbers tested")
-    console.log("All those primes are saved to '"+name+"' in the primeResults folder")
-    console.log("Started @"+startTime.toLocaleTimeString()+", array generation finished @"+arrayFinishedTime.toLocaleTimeString()+", prime test finished @"+testTime.toLocaleTimeString()+", and write time finished @"+finishedTime.toLocaleTimeString()+". The aftercalculations finished @"+operationsPushFinished.toLocaleTimeString())
-    console.log("The modulus calculations took a total of "+hrs+":"+mins+":"+secs+"."+ms)
-    startPrompt()
-  })
-}
-
-function promptPrimeTest(logConsole){
-  console.log("Type the number range to test")
-  prompt.get([{name:"MinNo",type:"integer",required:true},{name:"MaxNo",type:"integer",required:true}],function(err,result){
-    var testArray = []
-    var primes = []
-    var startTime = new Date()
-    console.log("Generating searchable array...")
-
-    for(i=result.MinNo;i<=result.MaxNo;i++){
-      if(i!==1){
-        if(i%2!==0||i===2){
-          testArray.push(i)
-        }
-      }
-    }
-    console.log("Testing has started...")
-    var arrayFinishedTime = new Date()
-    testArray.forEach(function(value,index){
-      if(isPrime(value)){
-        if(logConsole){console.log(value+" is a prime")}
-        primes.push(value)
-      }
-    })
-    var testTime = new Date()
-    var name = "./primeResults/primes"+result.MinNo+"--"+result.MaxNo+".json"
-    fs.writeFileSync(name,JSON.stringify(primes))
-    var finishedTime = new Date()
-    var modulusTime = testTime-arrayFinishedTime
-    var operationsPush = {time:modulusTime}
-    var s = modulusTime
-    var ms = ("00"+(s % 1000)).slice(-3)
-    s = (s - ms) / 1000;
-    var secs = ("0"+(s % 60)).slice(-2)
-    s = (s - secs) / 60;
-    var mins = ("0"+(s % 60)).slice(-2)
-    var hrs = ("0"+((s - mins) / 60)).slice(-2)
-    var timeString = hrs+":"+mins+":"+secs+"."+ms
-    var primePercentage = primes.length/(result.MaxNo-result.MinNo+1)
-    primePercentage = Math.round(primePercentage*10000)/100
-    calcModulus = calculateModulus(result.MinNo,result.MaxNo)
-    operationsPush.type="oldSearch"
-    operationsPush.timeString = timeString
-    operationsPush.primePercentage = primePercentage
-    operationsPush.range = {min:result.MinNo,max:result.MaxNo,totalNumbers:result.MaxNo-result.MinNo+1,numbersToCheck:calcModulus.numbers}
-    var operationsPushed = operationsCalculations
-    operationsPushed.operations.unshift(operationsPush)
-    fs.writeFileSync('operations.json',JSON.stringify(operationsPushed))
-    var operationsPushFinished = new Date()
-
-    console.log("From "+result.MinNo+" to "+result.MaxNo+", there are "+primes.length+" primes. That is "+primePercentage+"% of the numbers tested")
-    console.log("All those primes are saved to '"+name+"' in the primeResults folder")
-    console.log("Started @"+startTime.toLocaleTimeString()+", array generation finished @"+arrayFinishedTime.toLocaleTimeString()+", prime test finished @"+testTime.toLocaleTimeString()+", and write time finished @"+finishedTime.toLocaleTimeString()+". The aftercalculations finished @"+operationsPushFinished.toLocaleTimeString())
-    console.log("The modulus calculations took a total of "+hrs+":"+mins+":"+secs+"."+ms)
-    startPrompt()
-  })
-}
-
-function calculateModulus(min,max){
-  var numbers = 0
-  for(i=min;i<=max;i++){
-    if(i!==1){
-      if(i%2!==0||i===2){
-        numbers++
-      }
-    }
-  }
-  return {numbers:numbers,min:min,max:max}
-}
-
-function isPrime(value) {
-    for(i = 2; i <= value/2; i++) {
-        if(value % i === 0) {
-            return false;
-        }
-    }
-    return true;
-}
-startPrompt()
+userPrompt()
