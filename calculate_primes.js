@@ -15,6 +15,32 @@ try{
   console.log("Do 'npm install fs'")
   process.exit(0)
 }
+try{
+  var colors = require("prompt/node_modules/colors")
+}catch(err){
+  try{
+    var colors = require("colors")
+  }catch(err){
+    console.log("Please install the Node-Package-Module (NPM) colors first")
+    console.log("Do 'npm install colors'")
+    process.exit(0)
+  }
+}
+
+colors.setTheme({
+  logTime:["magenta","bold"],
+  time:["magenta","bold"],
+  messageDecimileter:"dim",
+  messageMain:"blue",
+  messageSecond:"cyan",
+  messageThird:"white",
+  success:["green","bold"],
+  file:"bold",
+  percentage:"white",
+  number:"white",
+  warning:"red",
+  error:["bgRed","black","bold"]
+})
 
 var dir = './primeResults';
 
@@ -23,10 +49,11 @@ if (!fs.existsSync(dir)){
 }
 
 function userPrompt(){
-  prompt.message="Prime Calculator -> console"
+  prompt.message="Prime Calculator".messageMain+" -> ".messageDecimileter+"console".messageSecond
+  console.log("")
   console.log("What do you want to do?")
-  console.log("  ·you can SEARCH a number range for primes")
-  //console.log("  ·you can FIND a requested amount of primes")
+  console.log("  ·you can "+"SEARCH".bold.inverse+" a number range for primes")
+  //console.log("  ·you can "+"FIND".bold.inverse+" a requested amount of primes")
   prompt.get({name:"Action"},function(err,result){
     switch(result.Action.toLowerCase()){
       case "search":
@@ -42,17 +69,30 @@ function userPrompt(){
 }
 
 function searchPrompt(step,input){
-  prompt.message="Prime Calculator -> search -> setup"
+  prompt.message="Prime Calculator".messageMain+" -> ".messageDecimileter+"search".messageSecond+" -> ".messageDecimileter+"setup".messageThird
   if(step===1){
+    console.log("")
     console.log("Set the maximum range for the search")
-    prompt.get({name:"MaxRange",type:"integer",required:true,message:"Must be a number greater than 1",minimum:2},function(err,result){
-      searchPrompt(2,result.MaxRange)
+    prompt.get({name:"MaxRange",required:true},function(err,result){
+      if(isNaN(result.MaxRange)){
+        console.log("ERROR!".error+" Must be an "+"integer".yellow.bold+" greater than "+"2".yellow.bold)
+        searchPrompt(1)
+      }else{
+        if(result.MaxRange>=2){
+          searchPrompt(2,result.MaxRange)
+        }else{
+          console.log("")
+          console.log("ERROR!".error+" Must be an "+"integer".yellow.bold+" greater than "+"2".yellow.bold)
+          searchPrompt(1)
+        }
+      }
     })
   }else if(step===2){
+    console.log("")
     console.log("Do you want to log the results in the console in real-time?")
-    console.log("This will make everything take MUCH LONGER TIME")
-    console.log("NOT RECOMMENDED")
-    console.log("true to log everything in chat meanwhile, false to log everything afterwards, leave blank to not log at all")
+    console.log("This will make everything take "+"MUCH LONGER TIME".bold)
+    console.log("NOT RECOMMENDED".warning)
+    console.log("true".bold+" to log everything in chat meanwhile, "+"false".bold+" to log everything afterwards, "+"leave blank".bold+" to not log at all")
     prompt.get({name:"logMode",type:"boolean"},function(err,result){
       var memorySafe = (input>=50000000)
       if(result.logMode===true){
@@ -68,11 +108,13 @@ function searchPrompt(step,input){
 
 function execSearch(maxNo,logMeanwhile,logAfter,memorySafe){
   if(memorySafe){
-    console.log("Memory-safe search function has been activated. That means that the saving will take longer time, to prevent crashes")
+    console.log("")
+    console.log("Memory-safe search function has been activated. That means that the saving will take longer time, to prevent crashes".dim)
   }
   var time = {startTime:new Date()};
   time.arrayTime = new Date();
-  console.log("["+time.startTime.toLocaleTimeString()+"] Prime tests has started...")
+  console.log("")
+  console.log("[".logTime+time.startTime.toLocaleTimeString().logTime+"]".logTime+" Prime tests has started...")
 
   //CORE CODE START
   var primes = [];
@@ -88,10 +130,11 @@ function execSearch(maxNo,logMeanwhile,logAfter,memorySafe){
       primes.push(l)
     }
   }
+  //PRIME_BLAZE ©JONATHAN WIDÉN 2017
   //CORE CODE END
 
   time.modTime = new Date();
-  console.log("["+time.modTime.toLocaleTimeString()+"] Writing has started...")
+  console.log("[".logTime+time.modTime.toLocaleTimeString().logTime+"]".logTime+" Writing has started...")
   var name = "./primeResults/primesUpTo"+maxNo+".json";
   fs.writeFileSync(name,"[")
   var appendValue = "";
@@ -109,17 +152,17 @@ function execSearch(maxNo,logMeanwhile,logAfter,memorySafe){
         appendValue=""
         appendsInBatch=0
         totalAppends++
-        console.log("Saving... "+(1000000*totalAppends)+"/"+primes.length)
+        console.log("Saving... "+(1000000*totalAppends).toString().number+"/".number+primes.length.toString().number)
       }
     })
     fs.appendFileSync(name,appendValue)
     fs.appendFileSync(name,"]")
-    console.log("Saving... "+primes.length+"/"+primes.length)
-    console.log("Saving... Success!")
+    console.log("Saving... "+primes.length.toString().number+"/".number+primes.length.toString().number)
+    console.log("Saving... "+"Success!".success)
     appendValue="";
   }else{
     fs.writeFileSync(name,JSON.stringify(primes))
-    console.log("Saving... Success!")
+    console.log("Saving... "+"Success!".success)
   }
 
   time.finished = new Date()
@@ -135,14 +178,15 @@ function execSearch(maxNo,logMeanwhile,logAfter,memorySafe){
     })
   }
   console.log("")
-  console.log("["+time.finished.toLocaleTimeString()+"] CALCULATIONS HAS FINISHED")
+  console.log("[".logTime+time.finished.toLocaleTimeString().logTime+"]".logTime+" CALCULATIONS HAS FINISHED")
   console.log("Results:")
-  console.log(primes.length+" primes were found up to "+maxNo)
-  console.log(primePercentage+"% of all searched numbers were primes")
-  console.log("Total time taken was "+totalTimeString+" ("+totalTime+"ms)")
-  console.log("Time taken for modulus operations was "+modulusTimeString+" ("+modulusTime+"ms)")
-  console.log("All primes has been saved to "+name)
+  console.log(primes.length.toString().number+" primes were found up to "+maxNo.toString().number)
+  console.log(primePercentage.toString().percentage+"%".percentage+" of all searched numbers were primes")
+  console.log("Total time taken was "+totalTimeString.time+" ("+totalTime.toString().time+"ms".time+")")
+  console.log("Time taken for modulus operations was "+modulusTimeString.time+" ("+modulusTime.toString().time+"ms".time+")")
+  console.log("All primes has been saved to "+name.file)
   console.log("The script has ended.")
+  console.log("")
   process.exit(0)
 }
 
