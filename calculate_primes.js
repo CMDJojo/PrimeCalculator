@@ -39,7 +39,8 @@ colors.setTheme({
   percentage:"white",
   number:"white",
   warning:"red",
-  error:["bgRed","black","bold"]
+  error:["bgRed","black","bold"],
+  alternative:["bold","inverse"]
 })
 
 var dir = './primeResults';
@@ -52,7 +53,7 @@ function userPrompt(){
   prompt.message="Prime Calculator".messageMain+" -> ".messageDecimileter+"console".messageSecond
   console.log("")
   console.log("What do you want to do?")
-  console.log("  ·you can "+"SEARCH".bold.inverse+" a number range for primes")
+  console.log("  ·you can "+"SEARCH".alternative+" a number range for primes")
   //console.log("  ·you can "+"FIND".bold.inverse+" a requested amount of primes")
   prompt.get({name:"Action"},function(err,result){
     switch(result.Action.toLowerCase()){
